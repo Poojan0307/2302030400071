@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMI Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-container, .main-container {
+            display: none;
+        }
+
+        .active {
+            display: block;
+        }
+
+        h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #6e8efb;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: linear-gradient(45deg, #6e8efb, #a777e3);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            color: #333;
+            text-align: center;
+        }
+
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+            animation: popupIn 0.3s ease;
+        }
+
+        @keyframes popupIn {
+            from { transform: translate(-50%, -60%); opacity: 0; }
+            to { transform: translate(-50%, -50%); opacity: 1; }
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 999;
+        }
+
+        #accountInfo, #dailyPlan {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        #accountInfo p, #dailyPlan p {
+            margin: 8px 0;
+            color: #666;
+        }
+
+        .secondary-btn {
+            background: #fff;
+            border: 2px solid #6e8efb;
+            color: #6e8efb;
+        }
+
+        .secondary-btn:hover {
+            background: #6e8efb;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="overlay" id="overlay"></div>
+    <div class="popup" id="popup">
+        <h3>Account Created!</h3>
+        <p>Your account has been successfully created.</p>
+        <button onclick="closePopup()">Close</button>
+    </div>
+
+    <div class="container login-container active" id="loginContainer">
+        <h2>Welcome Back</h2>
+        <input type="text" id="username" placeholder="Username" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button onclick="login()">Login</button>
+        <button class="secondary-btn" onclick="showSignup()">Create Account</button>
+    </div>
+
+    <div class="container login-container" id="signupContainer">
+        <h2>Create Account</h2>
+        <input type="text" id="newUsername" placeholder="Username" required>
+        <input type="password" id="newPassword" placeholder="Password" required>
+        <input type="number" id="height" placeholder="Height (cm)" required>
+        <input type="number" id="weight" placeholder="Weight (kg)" required>
+        <input type="number" id="age" placeholder="Age" required>
+        <select id="gender" required>
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+        </select>
+        <select id="workoutPlan" required>
+            <option value="">Select Workout Plan</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+        </select>
+        <input type="time" id="workoutTime" required>
+        <input type="text" id="workoutRoutine" placeholder="Workout Day (e.g., Sunday)" required>
+        <button onclick="createAccount()">Create Account</button>
+    </div>
+
+    <div class="container main-container" id="mainContainer">
+        <h2>BMI Calculator</h2>
+        <div id="accountInfo"></div>
+        <div id="dailyPlan"></div>
+        <input type="number" id="currentWeight" placeholder="Current Weight (kg)">
+        <button onclick="calculateBMI()">Calculate BMI</button>
+        <div class="result" id="result"></div>
+        <button class="secondary-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        let users = {};
+        let currentUser = null;
+
+        const workoutPlans = {
+            beginner: {
+                Monday: ["Push-ups", "Squats", "Plank"],
+                Tuesday: ["Jumping Jacks", "Lunges"],
+                Wednesday: ["Sit-ups", "Wall Push-ups", "Leg Raises"],
+                Thursday: ["High Knees", "Calf Raises"],
+                Friday: ["Burpees", "Mountain Climbers", "Plank"],
+                Saturday: ["Jumping Jacks", "Lunges", "Box Jumps", "Dips", "Kettlebell Swings"],
+                Sunday: []
+            },
+            intermediate: {
+                Monday: ["Push-ups", "Squats", "Plank", "Pull-ups"],
+                Tuesday: ["Jumping Jacks", "Lunges", "Box Jumps", "Dips"],
+                Wednesday: ["Sit-ups", "Wall Push-ups", "Leg Raises", "Side Plank"],
+                Thursday: ["High Knees", "Calf Raises", "Deadlifts", "Russian Twists"],
+                Friday: ["Burpees", "Mountain Climbers", "Plank", "Jump Squats"],
+                Saturday: ["Jumping Jacks", "Lunges", "Box Jumps", "Dips", "Kettlebell Swings"],
+                Sunday: []
+            },
+            advanced: {
+                Monday: ["Push-ups", "Squats", "Plank", "Pull-ups", "Bench Press"],
+                Tuesday: ["Jumping Jacks", "Lunges", "Box Jumps", "Dips", "Kettlebell Swings"],
+                Wednesday: ["Sit-ups", "Wall Push-ups", "Leg Raises", "Side Plank", "Hanging Leg Raises"],
+                Thursday: ["High Knees", "Calf Raises", "Deadlifts", "Russian Twists", "Barbell Rows"],
+                Friday: ["Burpees", "Mountain Climbers", "Plank", "Jump Squats", "Muscle-ups"],
+                Saturday: ["Jumping Jacks", "Lunges", "Box Jumps", "Dips", "Kettlebell Swings"],
+                Sunday: []
+            }
+        };
+
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+        function showSignup() {
+            document.getElementById('loginContainer').classList.remove('active');
+            document.getElementById('signupContainer').classList.add('active');
+        }
+
+        function createAccount() {
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            const height = document.getElementById('height').value;
+            const weight = document.getElementById('weight').value;
+            const age = document.getElementById('age').value;
+            const gender = document.getElementById('gender').value;
+            const workoutPlan = document.getElementById('workoutPlan').value;
+            const workoutTime = document.getElementById('workoutTime').value;
+            const workoutRoutine = document.getElementById('workoutRoutine').value.trim();
+
+            if (username && password && height && weight && age && gender && workoutPlan && workoutTime && workoutRoutine) {
+                if (users[username]) {
+                    alert('Username already exists! Please choose a different username.');
+                    return;
+                }
+                if (!daysOfWeek.includes(workoutRoutine)) {
+                    alert('Please enter a valid day of the week (e.g., Sunday, Monday, etc.)');
+                    return;
+                }
+                users[username] = {
+                    password,
+                    height,
+                    weight,
+                    age,
+                    gender,
+                    workoutPlan,
+                    workoutTime,
+                    workoutRoutine
+                };
+                console.log('Account created:', users[username]);
+                showPopup();
+                setTimeout(() => {
+                    closePopup();
+                    document.getElementById('signupContainer').classList.remove('active');
+                    document.getElementById('loginContainer').classList.add('active');
+                    document.getElementById('newUsername').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('height').value = '';
+                    document.getElementById('weight').value = '';
+                    document.getElementById('age').value = '';
+                    document.getElementById('gender').value = '';
+                    document.getElementById('workoutPlan').value = '';
+                    document.getElementById('workoutTime').value = '';
+                    document.getElementById('workoutRoutine').value = '';
+                }, 2000);
+            } else {
+                alert('Please fill all fields');
+            }
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (users[username] && users[username].password === password) {
+                currentUser = username;
+                console.log('Logged in as:', currentUser, users[currentUser]);
+                document.getElementById('loginContainer').classList.remove('active');
+                document.getElementById('mainContainer').classList.add('active');
+                displayAccountInfo();
+                displayDailyPlan();
+                checkSunday();
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+            } else {
+                alert('Invalid username or password');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('mainContainer').classList.remove('active');
+            document.getElementById('loginContainer').classList.add('active');
+        }
+
+        function displayAccountInfo() {
+            const user = users[currentUser];
+            if (!user) {
+                console.error('No user data found for', currentUser);
+                return;
+            }
+            document.getElementById('accountInfo').innerHTML = `
+                <p><strong>Username:</strong> ${currentUser}</p>
+                <p>Height: ${user.height} cm</p>
+                <p>Weight: ${user.weight} kg</p>
+                <p>Age: ${user.age}</p>
+                <p>Gender: ${user.gender}</p>
+                <p>Workout Plan: ${user.workoutPlan}</p>
+                <p>Workout Time: ${user.workoutTime}</p>
+                <p>Workout Day: ${user.workoutRoutine}</p>
+            `;
+        }
+
+        function displayDailyPlan() {
+            const user = users[currentUser];
+            if (!user) {
+                console.error('No user data found for', currentUser);
+                return;
+            }
+            const plan = workoutPlans[user.workoutPlan];
+            const workoutDay = user.workoutRoutine; // Use the user-specified day
+            const dailyExercises = plan[workoutDay] || [];
+
+            document.getElementById('dailyPlan').innerHTML = `
+                <p><strong>Workout for ${workoutDay}:</strong></p>
+                ${dailyExercises.length > 0 
+                    ? `<p>${dailyExercises.length} exercises (${dailyExercises.join(", ")})</p>`
+                    : `<p>No exercises scheduled for ${workoutDay}.</p>`}
+            `;
+        }
+
+        function calculateBMI() {
+            const user = users[currentUser];
+            const currentWeight = document.getElementById('currentWeight').value || user.weight;
+            const heightInMeters = user.height / 100;
+            const bmi = (currentWeight / (heightInMeters * heightInMeters)).toFixed(1);
+            
+            let status = '';
+            if (bmi < 18.5) status = 'Underweight';
+            else if (bmi < 25) status = 'Normal';
+            else if (bmi < 30) status = 'Overweight';
+            else status = 'Obese';
+
+            document.getElementById('result').innerHTML = `
+                BMI: ${bmi}<br>
+                Status: ${status}
+            `;
+        }
+
+        function checkSunday() {
+            const user = users[currentUser];
+            if (user.workoutRoutine === "Sunday") {
+                alert("It's Sunday - Holiday! No workout today!");
+            }
+        }
+
+        function showPopup() {
+            document.getElementById('popup').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function closePopup() {
+            document.getElementById('popup').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
